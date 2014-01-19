@@ -22,13 +22,13 @@ static void robustnorm(const cv::Mat &X, const cv::Mat &Y, cv::Mat &D2)
     Y.convertTo(tY,CV_64FC1);
     D2 = tX.mul(tX) + tY.mul(tY);
     cv::sqrt(D2, D2);
-    //cv::normalize(D2, D2, 0, 1, cv::NORM_RELATIVE, CV_64FC1);
+    //cv::normalize(D2, D2, 0, 1, cv::NORM_MINMAX, CV_64FC1);
     D2 = D2 / *std::max_element(D2.begin<double>(), D2.end<double>());
 }
 
 static void epanechnikov(const cv::Mat &D2, cv::Mat &K)
 {
-    K=2/M_PI-(2/M_PI)*D2;
+    K=(1-2/M_PI)*D2;
 }
 
 static void linspace(std::vector<double> &vec, double start, double end, double space)
@@ -37,7 +37,7 @@ static void linspace(std::vector<double> &vec, double start, double end, double 
     double val=start;
 
     vec.clear();
-    int bins = (end-start)/delta;
+    int bins = fabs(end-start)/delta;
     for (int i=0; i<=bins; i++){
         vec.push_back(val);
         val += delta;
@@ -172,6 +172,39 @@ double compareSpatiograms(const spatiogram &p, const spatiogram &q, cv::Mat &w, 
         cv::Mat V = w.at<double>(0,i)*std::sqrt(p.cd.at<double>(0,i)*q.cd.at<double>(0,i))*invS*(ub1-ub2);
         v.at<double>(0,i) = V.at<double>(0,0);
         v.at<double>(1,i) = V.at<double>(1,0);
+        // Bhattacharyya coefficient
+        double rho = sqrt( p.cd.at<double>(0,i)*q.cd.at<double>(0,i) );
+        temp.at<double>(0,i) = (w.at<double>(0,i)) * rho;
+    }
+    return cv::sum(temp)[0];
+}
+
+double compareSpatiograms(const spatiogram &p, const spatiogram &q ){
+    CV_Assert(p.bins==q.bins);
+
+    cv::Mat temp = cv::Mat::zeros(1, p.bins, CV_64FC1);
+    cv::Mat w = cv::Mat::zeros(1, p.bins, CV_64FC1);
+
+    for (int i=0; i<p.bins; i++){
+        // Means
+        cv::Mat ub1(2,1,CV_64FC1);
+        ub1.at<double>(0,0)=p.mu.at<double>(0,i);
+        ub1.at<double>(1,0)=p.mu.at<double>(1,i);
+        cv::Mat ub2(2,1,CV_64FC1);
+        ub2.at<double>(0,0)=q.mu.at<double>(0,i);
+        ub2.at<double>(1,0)=q.mu.at<double>(1,i);
+        // covariances in matrix format and clipped to 1
+        cv::Mat cm1=cv::Mat::ones(2,2,CV_64FC1);
+        cm1.at<double>(0,0) += p.cm.at<double>(0,i);
+        cm1.at<double>(1,1) += p.cm.at<double>(1,i);
+        cv::Mat cm2=cv::Mat::ones(2,2,CV_64FC1);
+        cm2.at<double>(0,0) += q.cm.at<double>(0,i);
+        cm2.at<double>(1,1) += q.cm.at<double>(1,i);
+        // weightening factor
+        cv::Mat invS = cm1.inv(cv::DECOMP_LU) + cm2.inv(cv::DECOMP_LU);
+        cv::Mat diff = ub2-ub1;
+        cv::Mat expo = (-0.5)*diff.t()*invS*diff;
+        w.at<double>(0,i) = std::exp( expo.at<double>(0,0) );
         // Bhattacharyya coefficient
         double rho = sqrt( p.cd.at<double>(0,i)*q.cd.at<double>(0,i) );
         temp.at<double>(0,i) = (w.at<double>(0,i)) * rho;

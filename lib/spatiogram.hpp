@@ -18,6 +18,7 @@ struct spatiogram{
 
 void computeSpatiogram( const cv::Mat &imagePatch, int m, spatiogram &sg );
 double compareSpatiograms( const spatiogram &p, const spatiogram &q, cv::Mat &w, cv::Mat &v );
+double compareSpatiograms( const spatiogram &p, const spatiogram &q );
 void computeWeights( const cv::Mat &imagePatch, const spatiogram &qTarget, const spatiogram &pCurrent,
                      const cv::Mat &w, cv::Mat &weights );
 cv::Point2d computeMeanshiftVector(const cv::Rect &patch, const cv::Mat &weights, const cv::Mat &v);

@@ -43,15 +43,14 @@ void spatiogramTracker::update(const cv::Mat &image, cv::Rect &roi){
         computeSpatiogram(imPatch, nBins, colorModel);
         // Evaluate the similarity coefficient
         rho_0 = compareSpatiograms(targetModel, colorModel, w, v);
-        std::cout<<"iter_"<<i<<": "<<rho_0<<std::endl;
+        //std::cout<<"iter_"<<i<<": "<<rho_0<<std::endl;
 
         // STEP 2
         // Derive the weights
         computeWeights(imPatch, targetModel, colorModel, w, weights);
-        cv::Mat nw=weights.clone();
-        cv::normalize(nw,nw,0,255,cv::NORM_MINMAX);
+        //cv::Mat nw=weights.clone();
+        //cv::normalize(nw,nw,0,255,cv::NORM_MINMAX);
         //cv::imshow("we",nw);
-
 
         // STEP 3
         // Compute the mean-shift vector using Epanechnikov kernel
@@ -62,8 +61,8 @@ void spatiogramTracker::update(const cv::Mat &image, cv::Rect &roi){
         roi=checkRect(image, roi);
 
         // STEPS 4 & 5
-        /*double rho_1 = 0;
-        for ( int cont=0; (cont<1 && rho_1 < rho_0); cont++ ){
+        double rho_1 = 0;
+        for ( int cont=0; (cont<0 && rho_1 < rho_0); cont++ ){
             // Calculate the pdf of the new position
             cv::Mat newImPatch = image(roi).clone();
             spatiogram newColorModel;
@@ -75,16 +74,17 @@ void spatiogramTracker::update(const cv::Mat &image, cv::Rect &roi){
 
             // Update center (correct)
             if (rho_1 < rho_0){
-                roi.x = (0.1*prev_boundBox.x + 0.9*roi.x);
-                roi.y = (0.1*prev_boundBox.y + 0.9*roi.y);
+                roi.x = (0.5*prev_boundBox.x + 0.5*roi.x);
+                roi.y = (0.5*prev_boundBox.y + 0.5*roi.y);
                 roi=checkRect(image, roi);
             }
-        }*/
+        }
 
         // STEP 6
         double norm1 = fabs(roi.x-prev_boundBox.x)+fabs(roi.y-prev_boundBox.y);
-        if ( norm1 < 1 )
+        if ( norm1 < 5 )
             break;
+        //std::cout<<"norm: "<<norm1<<std::endl;
         prev_boundBox = roi;
     }
 }

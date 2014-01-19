@@ -28,6 +28,6 @@ private:
     int nIter;
 };
 
-cv::Ptr<mcv_tracker> createSpatiogramTracker( int nBins, int nIter );
+cv::Ptr<mcv_tracker> createSpatiogramTracker( int nBins=10, int nIter=10 );
 
 #endif
