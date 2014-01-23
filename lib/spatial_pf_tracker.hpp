@@ -23,6 +23,7 @@ public:
     virtual std::string getName() const;
 
     void getParticles(std::vector<cv::Rect2d>& xpPred){xpPred = this->xpPred;}
+    bool useSizeStates;
 private:
     cv::Mat imPatch;
     cv::Rect boundBox;

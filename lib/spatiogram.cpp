@@ -4,8 +4,7 @@
 
 
 static void meshgrid(const cv::Range &xgv, const cv::Range &ygv,
-                         cv::Mat &X, cv::Mat &Y)
-{
+                         cv::Mat &X, cv::Mat &Y){
   std::vector<int> t_x, t_y;
   for (int i = xgv.start; i <= xgv.end; i++) t_x.push_back(i);
   for (int i = ygv.start; i <= ygv.end; i++) t_y.push_back(i);
@@ -15,8 +14,7 @@ static void meshgrid(const cv::Range &xgv, const cv::Range &ygv,
   cv::repeat(Ty.reshape(1,1).t(), 1, Tx.total(), Y);
 }
 
-static void robustnorm(const cv::Mat &X, const cv::Mat &Y, cv::Mat &D2)
-{
+static void robustnorm(const cv::Mat &X, const cv::Mat &Y, cv::Mat &D2){
     cv::Mat tX, tY;
     X.convertTo(tX,CV_64FC1);
     Y.convertTo(tY,CV_64FC1);
@@ -26,13 +24,11 @@ static void robustnorm(const cv::Mat &X, const cv::Mat &Y, cv::Mat &D2)
     D2 = D2 / *std::max_element(D2.begin<double>(), D2.end<double>());
 }
 
-static void epanechnikov(const cv::Mat &D2, cv::Mat &K)
-{
-    K=(1-2/M_PI)*D2;
+static void epanechnikov(const cv::Mat &D2, cv::Mat &K){
+    K=(2/M_PI)-(2/M_PI)*D2;
 }
 
-static void linspace(std::vector<double> &vec, double start, double end, double space)
-{
+static void linspace(std::vector<double> &vec, double start, double end, double space){
     double delta=space;
     double val=start;
 
@@ -56,6 +52,11 @@ static void binelements(const cv::Mat &imagePatch, const std::vector<double> bin
                      (double)imagePatch.at<cv::Vec3b>(i,j)[channel]  < bins[bin+1]){
                     mask.at<double>(i,j) = 1; // is in the correct bin, mark it
                 }break;
+                case 2:
+                if ( (double)imagePatch.at<cv::Vec2b>(i,j)[channel] >= bins[bin] &&
+                     (double)imagePatch.at<cv::Vec2b>(i,j)[channel]  < bins[bin+1]){
+                    mask.at<double>(i,j) = 1; // is in the correct bin, mark it
+                }break;
                 case 1:
                 if ( (double)imagePatch.at<uchar>(i,j) >= bins[bin] &&
                      (double)imagePatch.at<uchar>(i,j)  < bins[bin+1]){
@@ -76,13 +77,15 @@ static void mat3min(const std::vector<cv::Mat> &im, cv::Mat &m3m){
                 switch (im.size()){
                     case 3:
                     {
-                        double val = std::min(im[0].at<double>(i,j),im[1].at<double>(i,j));
-                        val = std::min(val,im[2].at<double>(i,j));
+                        //double val = std::min(im[0].at<double>(i,j),im[1].at<double>(i,j));
+                        //val = std::min(val,im[2].at<double>(i,j));
+                        double val = (im[0].at<double>(i,j)+im[1].at<double>(i,j)+im[2].at<double>(i,j))/3;
                         m3m.at<double>(i,j) = val;
                     }break;
                     case 2:
                     {
-                        double val = std::min(im[0].at<double>(i,j),im[1].at<double>(i,j));
+                        //double val = std::min(im[0].at<double>(i,j),im[1].at<double>(i,j));
+                        double val = (im[0].at<double>(i,j)+im[1].at<double>(i,j))/2;
                         m3m.at<double>(i,j) = val;
                     }break;
                 }
@@ -182,34 +185,77 @@ double compareSpatiograms(const spatiogram &p, const spatiogram &q, cv::Mat &w, 
 double compareSpatiograms(const spatiogram &p, const spatiogram &q ){
     CV_Assert(p.bins==q.bins);
 
-    cv::Mat temp = cv::Mat::zeros(1, p.bins, CV_64FC1);
-    cv::Mat w = cv::Mat::zeros(1, p.bins, CV_64FC1);
+    double temp = 0;
+    // means
+    cv::Mat ub1(2,1,CV_64FC1);
+    cv::Mat ub2(2,1,CV_64FC1);
+    // Covs clipped to 1
+    cv::Mat cm1=cv::Mat::ones(2,2,CV_64FC1);
+    cv::Mat cm2=cv::Mat::ones(2,2,CV_64FC1);
 
     for (int i=0; i<p.bins; i++){
         // Means
-        cv::Mat ub1(2,1,CV_64FC1);
-        ub1.at<double>(0,0)=p.mu.at<double>(0,i);
-        ub1.at<double>(1,0)=p.mu.at<double>(1,i);
-        cv::Mat ub2(2,1,CV_64FC1);
-        ub2.at<double>(0,0)=q.mu.at<double>(0,i);
-        ub2.at<double>(1,0)=q.mu.at<double>(1,i);
-        // covariances in matrix format and clipped to 1
-        cv::Mat cm1=cv::Mat::ones(2,2,CV_64FC1);
-        cm1.at<double>(0,0) += p.cm.at<double>(0,i);
-        cm1.at<double>(1,1) += p.cm.at<double>(1,i);
-        cv::Mat cm2=cv::Mat::ones(2,2,CV_64FC1);
-        cm2.at<double>(0,0) += q.cm.at<double>(0,i);
-        cm2.at<double>(1,1) += q.cm.at<double>(1,i);
+        ub1 = p.mu.col(i);
+        ub2 = q.mu.col(i);
+        // covariance matrices
+        cm1.at<double>(0,0) = 1+p.cm.at<double>(0,i);
+        cm1.at<double>(1,1) = 1+p.cm.at<double>(1,i);
+        cm2.at<double>(0,0) = 1+q.cm.at<double>(0,i);
+        cm2.at<double>(1,1) = 1+q.cm.at<double>(1,i);
         // weightening factor
         cv::Mat invS = cm1.inv(cv::DECOMP_LU) + cm2.inv(cv::DECOMP_LU);
         cv::Mat diff = ub2-ub1;
         cv::Mat expo = (-0.5)*diff.t()*invS*diff;
-        w.at<double>(0,i) = std::exp( expo.at<double>(0,0) );
+        double w = std::exp( expo.at<double>(0,0) );
         // Bhattacharyya coefficient
         double rho = sqrt( p.cd.at<double>(0,i)*q.cd.at<double>(0,i) );
-        temp.at<double>(0,i) = (w.at<double>(0,i)) * rho;
+        temp += w*rho;
     }
-    return cv::sum(temp)[0];
+    return temp;
+}
+
+static double N(const cv::Mat& ub1, const cv::Mat& ub2,
+                const cv::Mat& cm1, const cv::Mat& cm2){
+    cv::Mat cm=2*(cm1+cm2);
+    cv::Mat invS = cm.inv(cv::DECOMP_LU);
+    cv::Mat diff = ub2-ub1;
+    cv::Mat expo=-0.5*diff.t()*invS*diff;
+    double D = cv::determinant(cm);
+    double r=std::exp( expo.at<double>(0,0) );
+
+    return r/(2*M_PI*std::sqrt(D+std::numeric_limits<double>::epsilon()));
+}
+
+/* This function implements the paper by Conaire and Connor:
+ * AN IMPROVED SPATIOGRAM SIMILARITY MEASURE FOR ROBUST OBJECT LOCALISATION
+ */
+double compareSpatiograms2(const spatiogram &p, const spatiogram &q ){
+    CV_Assert(p.bins==q.bins);
+
+    double temp = 0;
+
+    // means
+    cv::Mat ub1(2,1,CV_64FC1);
+    cv::Mat ub2(2,1,CV_64FC1);
+    // Covs clipped to 1
+    cv::Mat cm1=cv::Mat::ones(2,2,CV_64FC1);
+    cv::Mat cm2=cv::Mat::ones(2,2,CV_64FC1);
+    for (int i=0; i<p.bins; i++){
+        // Means
+        ub1 = p.mu.col(i);
+        ub2 = q.mu.col(i);
+        // covariance matrices
+        cm1.at<double>(0,0) = 1+p.cm.at<double>(0,i);
+        cm1.at<double>(1,1) = 1+p.cm.at<double>(1,i);
+        cm2.at<double>(0,0) = 1+q.cm.at<double>(0,i);
+        cm2.at<double>(1,1) = 1+q.cm.at<double>(1,i);
+        // weightening factor
+        double w = 8*M_PI*std::pow(cv::determinant(cm1*cm2),0.25)*N(ub1,ub2,cm1,cm2);
+        // Bhattacharyya coefficient
+        double rho = std::sqrt( p.cd.at<double>(0,i)*q.cd.at<double>(0,i) );
+        temp += w * rho;
+    }
+    return temp;
 }
 
 void computeWeights(const cv::Mat &imagePatch, const spatiogram &qTarget, const spatiogram &pCurrent,
@@ -247,8 +293,7 @@ cv::Point2d computeMeanshiftVector(const cv::Rect &patch, const cv::Mat &weights
     X.convertTo(X, CV_64FC1);
     Y.convertTo(Y, CV_64FC1);
 
-    double den = cv::sum(weights)[0];
-    if (den==0.0) den=std::numeric_limits<double>::epsilon();
+    double den = cv::sum(weights)[0]+std::numeric_limits<double>::epsilon();
 
     cv::Point2d z;
     z.x = ( cv::sum(X.mul(weights))[0] - cv::sum(v.row(0))[0] )/den;

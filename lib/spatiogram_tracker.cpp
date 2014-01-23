@@ -48,9 +48,6 @@ void spatiogramTracker::update(const cv::Mat &image, cv::Rect &roi){
         // STEP 2
         // Derive the weights
         computeWeights(imPatch, targetModel, colorModel, w, weights);
-        //cv::Mat nw=weights.clone();
-        //cv::normalize(nw,nw,0,255,cv::NORM_MINMAX);
-        //cv::imshow("we",nw);
 
         // STEP 3
         // Compute the mean-shift vector using Epanechnikov kernel
