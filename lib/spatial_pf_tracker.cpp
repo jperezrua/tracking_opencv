@@ -3,6 +3,8 @@
 #include <opencv2/highgui.hpp>
 #include <cmath>
 #include <limits>
+#include <functional>
+#include <algorithm>
 
 spatialPFTracker::spatialPFTracker( int nParticles, int nBins, double sigX,
                                     double sigY, double sigS ){
